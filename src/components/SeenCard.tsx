@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
-import { api, WEB_BASE_URL } from '../services/api';
+import { api } from '../services/api';
 import { EngagementSheet, reactions } from './EngagementSheet';
+import { ShareSheet } from './ShareSheet';
 import type { Engagement, Seen } from '../types';
 
 const compact = (value = 0) => value >= 1000 ? `${(value / 1000).toFixed(1)}K` : String(value);
@@ -15,6 +16,7 @@ export function SeenCard({ accessToken, item }: { accessToken: string; item: See
   const id = String(item.id || item._id || '');
   const [engagement, setEngagement] = useState<Engagement>(item.engagement || {});
   const [sheet, setSheet] = useState<'comments' | 'reactions' | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [pending, setPending] = useState('');
   const [notice, setNotice] = useState('');
   const run = async (name: string, action: () => Promise<{ engagement: Engagement }>) => { if (pending) return; setPending(name); setNotice(''); try { setEngagement((await action()).engagement); } catch (reason) { setNotice(reason instanceof Error ? reason.message : 'Could not update Seen'); } finally { setPending(''); } };
@@ -40,9 +42,10 @@ export function SeenCard({ accessToken, item }: { accessToken: string; item: See
       <View style={styles.action}><Ionicons name="eye-outline" color={colors.faint} size={19} /><Text style={styles.stat}>{compact(engagement.viewCount)}</Text></View>
       <View style={styles.spacer} />
       <Pressable disabled={Boolean(pending)} onPress={() => run('save', () => api.toggleSeenSave(id, accessToken))}>{pending === 'save' ? <ActivityIndicator color={colors.blue} size="small" /> : <Ionicons name={engagement.viewerSaved ? 'bookmark' : 'bookmark-outline'} color={engagement.viewerSaved ? colors.blue : colors.muted} size={21} />}</Pressable>
-      <Pressable onPress={() => Share.share({ message: `${item.title || 'Seen'}\n${WEB_BASE_URL}/seen/${id}`, url: `${WEB_BASE_URL}/seen/${id}` })}><Ionicons name="paper-plane-outline" color={colors.muted} size={21} /></Pressable>
+      <Pressable accessibilityLabel="Share this Seen" onPress={() => setShareOpen(true)}><Ionicons name="paper-plane-outline" color={colors.muted} size={21} /></Pressable>
     </View>
     <EngagementSheet accessToken={accessToken} engagement={engagement} id={id} mode={sheet} onClose={() => setSheet(null)} onUpdate={setEngagement} />
+    <ShareSheet accessToken={accessToken} item={item} onClose={() => setShareOpen(false)} visible={shareOpen} />
   </View>;
 }
 
