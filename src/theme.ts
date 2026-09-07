@@ -1,0 +1,1 @@
+export const colors = { bg: '#0A0C0F', surface: '#12151B', surface2: '#181D25', line: 'rgba(255,255,255,0.08)', blue: '#9CCBFF', text: '#FFFFFF', muted: 'rgba(255,255,255,0.62)', faint: 'rgba(255,255,255,0.40)', danger: '#F17878' };
