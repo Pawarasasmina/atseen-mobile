@@ -17,6 +17,13 @@ async function request<T>(path: string, options: RequestInit = {}, accessToken =
   return body.data as T;
 }
 
+async function upload<T>(path: string, form: FormData, accessToken: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` }, body: form });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) { if (response.status === 401) unauthorizedHandler?.(); throw new Error(body?.message || `Upload failed (${response.status})`); }
+  return body.data as T;
+}
+
 export const api = {
   login: (email: string, password: string) => request<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim().toLowerCase(), password }) }),
   me: (accessToken: string) => request<{ user: Session['user'] }>('/auth/me', {}, accessToken),
@@ -31,4 +38,11 @@ export const api = {
   toggleFollow: (username: string, accessToken: string) => request<{ relationship: { active?: boolean } }>(`/profiles/${encodeURIComponent(username)}/follow`, { method: 'PUT', body: JSON.stringify({}) }, accessToken),
   listShareRecipients: (query: string, accessToken: string) => request<{ people: ShareRecipient[] }>(`/messages/share/recipients?q=${encodeURIComponent(query.trim())}&limit=${query.trim() ? 30 : 16}`, {}, accessToken),
   sendSharedSeen: (id: string, recipientIds: string[], text: string, accessToken: string) => request<SharedContentResult>('/messages/share', { method: 'POST', body: JSON.stringify({ recipientIds, text: text.trim(), sharedContent: { contentType: 'seen', contentId: id } }) }, accessToken),
+  listSeenCategories: (accessToken: string) => request<{ categories: { id: string; name: string }[] }>('/publications/seen/categories', {}, accessToken),
+  createSeenDraft: (payload: { title: string; summary: string; category: string }, accessToken: string) => request<{ publication: { id: string; statusVersion: number } }>('/publications/drafts', { method: 'POST', body: JSON.stringify({ kind: 'SEEN', ...payload, description: payload.summary, visibility: 'PUBLIC', tags: [] }) }, accessToken),
+  uploadSeenCover: (id: string, asset: { uri: string; name: string; type: string }, statusVersion: number, accessToken: string) => { const form = new FormData(); form.append('file', asset as unknown as Blob); form.append('purpose', 'COVER'); form.append('statusVersion', String(statusVersion)); return upload<{ publication: { statusVersion: number } }>(`/publications/mine/${id}/media-upload`, form, accessToken); },
+  addSeenChapter: (id: string, title: string, text: string, statusVersion: number, accessToken: string) => request<{ chapter: unknown }>(`/publications/mine/${id}/chapters`, { method: 'POST', body: JSON.stringify({ title, blocks: [{ type: 'TEXT', text }], isPreview: true, releaseMode: 'IMMEDIATE', statusVersion }) }, accessToken),
+  submitSeen: (id: string, statusVersion: number, accessToken: string) => request<{ publication: Seen }>(`/publications/mine/${id}/submit`, { method: 'POST', body: JSON.stringify({ statusVersion }) }, accessToken),
+  createStory: (asset: { uri: string; name: string; type: string }, caption: string, editorMetadata: object, accessToken: string) => { const form = new FormData(); form.append('image', asset as unknown as Blob); form.append('caption', caption); form.append('mediaType', asset.type.startsWith('video/') ? 'video' : 'image'); form.append('duration', asset.type.startsWith('video/') ? '15' : '5'); form.append('audience', 'everyone'); form.append('allowReactions', 'true'); form.append('allowReplies', 'true'); form.append('allowSharing', 'true'); form.append('editorMetadata', JSON.stringify(editorMetadata)); return upload<{ story: unknown }>('/stories', form, accessToken); },
+  createNote: (text: string, context: string, location: string, asset: { uri: string; name: string; type: string } | null, accessToken: string) => { const form = new FormData(); form.append('text', text); form.append('context', context); form.append('location', location); form.append('entityRefs', '[]'); if (asset) form.append('image', asset as unknown as Blob); return upload<{ post: unknown }>('/wall', form, accessToken); },
 };
