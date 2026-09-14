@@ -50,7 +50,7 @@ export function ShareSheet({ accessToken, item, visible, onClose }: { accessToke
     finally { setSending(false); }
   };
 
-  return <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
+  return <Modal animationType="slide" onRequestClose={onClose} presentationStyle="overFullScreen" transparent visible={visible}>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
       <Pressable onPress={onClose} style={StyleSheet.absoluteFill} />
       <View style={styles.sheet}>

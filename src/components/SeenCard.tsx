@@ -24,7 +24,7 @@ export function SeenCard({ accessToken, item }: { accessToken: string; item: See
   return <View style={styles.card}>
     <View style={styles.creator}>
       {item.creator?.avatar ? <Image source={{ uri: item.creator.avatar }} style={styles.avatar} /> : <View style={[styles.avatar, styles.avatarFallback]}><Text style={styles.initial}>{item.creator?.name?.[0] || '?'}</Text></View>}
-      <View style={styles.creatorCopy}><View style={styles.nameRow}><Text style={styles.name}>{item.creator?.name || item.creator?.username || 'Creator'}</Text>{item.creator?.verified ? <Ionicons name="checkmark-circle" color={colors.blue} size={15} /> : null}</View><Text style={styles.location}>{item.creator?.location || 'Somewhere real'}</Text></View>
+      <View style={styles.creatorCopy}><View style={styles.nameRow}><Text style={styles.name}>{item.creator?.name || item.creator?.username || 'Creator'}</Text>{item.creator?.verified ? <Ionicons name="checkmark-circle" color={colors.blue} size={15} /> : null}</View><Text style={styles.location}>{item.creator?.location || 'At seen'}</Text></View>
       <Ionicons name="ellipsis-horizontal" color={colors.muted} size={18} />
     </View>
     <View style={styles.cover}>

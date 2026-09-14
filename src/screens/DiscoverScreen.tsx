@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomNav } from '../components/BottomNav';
 import { api } from '../services/api';
 import { colors } from '../theme';
-import type { DiscoverData, DiscoverPerson, Session } from '../types';
+import type { DiscoverData, DiscoverPerson, MainTab, Session } from '../types';
 
 const fallbackFilters = [{ id: 'for_you', label: 'For you' }, { id: 'nearby', label: 'Nearby' }, { id: 'creators', label: 'Creators' }, { id: 'new', label: 'New' }];
 const nameFor = (person: DiscoverPerson) => person.displayName || person.name || person.creator?.name || person.username || 'Creator';
@@ -23,7 +23,7 @@ function DiscoverCard({ accessToken, person }: { accessToken: string; person: Di
   return <View style={styles.card}>{image ? <Image source={{ uri: image }} style={StyleSheet.absoluteFill} /> : <LinearGradient colors={['#26364E', '#111820']} style={StyleSheet.absoluteFill} />}<LinearGradient colors={['transparent', 'rgba(6,8,11,.96)']} style={StyleSheet.absoluteFill} />{person.storyAvailable ? <View style={styles.storyDot} /> : null}<View style={styles.cardCopy}><View style={styles.cardNameRow}><Text numberOfLines={1} style={styles.cardName}>{name}</Text>{verified ? <Ionicons name="checkmark-circle" color={colors.blue} size={14} /> : null}</View><Text numberOfLines={1} style={styles.cardMeta}>{person.category || person.creator?.category || 'Creator'}{place ? ` · ${place}` : ''}</Text>{reason ? <Text numberOfLines={2} style={styles.reason}>{reason}</Text> : null}<Pressable disabled={!person.username || busy} onPress={toggleFollow} style={[styles.followButton, following && styles.followingButton]}>{busy ? <ActivityIndicator color={following ? colors.blue : colors.bg} size="small" /> : <Text style={[styles.followText, following && styles.followingText]}>{following ? 'Following' : 'Follow'}</Text>}</Pressable></View></View>;
 }
 
-export function DiscoverScreen({ session, onNavigate }: { session: Session; onNavigate: (key: 'seen' | 'discover') => void }) {
+export function DiscoverScreen({ session, onNavigate }: { session: Session; onNavigate: (key: MainTab) => void }) {
   const [data, setData] = useState<DiscoverData>({ recommendations: [], following: [], friends: [], filters: [] }); const [filter, setFilter] = useState('for_you'); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
   const load = useCallback(async () => { setError(''); try { setData(await api.discover(filter, session.accessToken)); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load Discover'); } finally { setLoading(false); setRefreshing(false); } }, [filter, session.accessToken]);
   useEffect(() => { setLoading(true); load(); }, [load]);

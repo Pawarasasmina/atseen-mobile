@@ -5,9 +5,9 @@ import { BottomNav } from '../components/BottomNav';
 import { SeenCard } from '../components/SeenCard';
 import { api } from '../services/api';
 import { colors } from '../theme';
-import type { Seen, Session } from '../types';
+import type { MainTab, Seen, Session } from '../types';
 
-export function SeenScreen({ session, onLogout, onNavigate }: { session: Session; onLogout: () => void; onNavigate: (key: 'seen' | 'discover') => void }) {
+export function SeenScreen({ session, onLogout, onNavigate }: { session: Session; onLogout: () => void; onNavigate: (key: MainTab) => void }) {
   const [items, setItems] = useState<Seen[]>([]); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
   const load = useCallback(async () => { setError(''); try { setItems((await api.listSeens(session.accessToken)).items || []); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load Seen'); } finally { setLoading(false); setRefreshing(false); } }, [session.accessToken]);
   useEffect(() => { load(); }, [load]);

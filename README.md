@@ -5,7 +5,7 @@ Expo SDK 57 React Native app for the same OnlyMe backend used by the web fronten
 ## Run
 
 1. Copy `.env.example` to `.env.local` and set `EXPO_PUBLIC_API_BASE_URL` for your device.
-2. Start the backend on port `5000`.
+2. Start the backend on port `3104`.
 3. Run `npm install`, then `npm start`.
 4. Scan the QR code with Expo Go, or press `a` for Android.
 
