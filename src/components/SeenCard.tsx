@@ -10,7 +10,7 @@ import type { Engagement, Seen } from '../types';
 
 const compact = (value = 0) => value >= 1000 ? `${(value / 1000).toFixed(1)}K` : String(value);
 
-export function SeenCard({ accessToken, item }: { accessToken: string; item: Seen }) {
+export function SeenCard({ accessToken, item, onOpen }: { accessToken: string; item: Seen; onOpen?: (chapter?: number) => void }) {
   const cover = item.coverMedia?.secureUrl;
   const chapters = item.chapters?.length || 0;
   const id = String(item.id || item._id || '');
@@ -27,13 +27,13 @@ export function SeenCard({ accessToken, item }: { accessToken: string; item: See
       <View style={styles.creatorCopy}><View style={styles.nameRow}><Text style={styles.name}>{item.creator?.name || item.creator?.username || 'Creator'}</Text>{item.creator?.verified ? <Ionicons name="checkmark-circle" color={colors.blue} size={15} /> : null}</View><Text style={styles.location}>{item.creator?.location || 'Somewhere real'}</Text></View>
       <Ionicons name="ellipsis-horizontal" color={colors.muted} size={18} />
     </View>
-    <View style={styles.cover}>
+    <Pressable onPress={() => onOpen?.()} style={styles.cover}>
       {cover ? <Image resizeMode="cover" source={{ uri: cover }} style={StyleSheet.absoluteFill} /> : <LinearGradient colors={['#27313F', '#11151B', '#080A0D']} style={StyleSheet.absoluteFill} />}
       <LinearGradient colors={['transparent', 'rgba(10,12,15,0.95)']} style={StyleSheet.absoluteFill} />
       {item.coverMedia?.mediaType === 'VIDEO' ? <View style={styles.duration}><Ionicons name="play" color="#fff" size={10} /><Text style={styles.durationText}>video</Text></View> : null}
       <View style={styles.titleWrap}><Text numberOfLines={2} style={styles.title}>{item.title || 'Untitled Seen'}</Text><Text style={styles.chapterCount}>{chapters} {chapters === 1 ? 'chapter' : 'chapters'}</Text></View>
-    </View>
-    <View style={styles.body}><Text style={styles.summary}>{item.summary || item.description || 'Step inside this Seen.'}</Text>{chapters ? <Pressable style={styles.chapter}><Text style={styles.chapterNumber}>01</Text><Text style={styles.chapterTitle}>Open first chapter</Text><Text style={styles.open}>Open ›</Text></Pressable> : null}</View>
+    </Pressable>
+    <View style={styles.body}><Pressable onPress={() => onOpen?.()}><Text style={styles.summary}>{item.summary || item.description || 'Step inside this Seen.'}</Text></Pressable>{chapters ? <Pressable onPress={() => onOpen?.(0)} style={styles.chapter}><Text style={styles.chapterNumber}>01</Text><Text style={styles.chapterTitle}>Open first chapter</Text><Text style={styles.open}>Open ›</Text></Pressable> : null}</View>
     {notice ? <Text style={styles.notice}>{notice}</Text> : null}
     <View style={styles.actions}>
       <Pressable disabled={Boolean(pending)} onPress={() => setSheet('reactions')} style={styles.action}><Text style={styles.reactionIcons}>{reactionIcons}</Text><Text style={[styles.stat, engagement.viewerReaction && styles.active]}>{compact(engagement.reactionCount)}</Text></Pressable>

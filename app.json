@@ -24,7 +24,13 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow OnlyMe to record voice chapters."
+        }
+      ]
     ]
   }
 }
