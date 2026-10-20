@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '../components/Avatar';
 import { BottomNav } from '../components/BottomNav';
@@ -7,7 +8,7 @@ import { ScreenState, SkeletonRows } from '../components/ScreenState';
 import { api, resolveMediaUrl, WEB_BASE_URL } from '../services/api';
 import { colors } from '../theme';
 import { compact, firstName, relativeTime, userAvatar, userName } from '../utils/format';
-import type { Engagement, MainTab, SawYouToday, Session, StoryGroup, WallComment, WallPost } from '../types';
+import type { CreateTarget, Engagement, MainTab, SawYouToday, Session, StoryGroup, WallComment, WallPost } from '../types';
 
 const filters = [
   { key: 'all', label: 'All', contexts: [] },
@@ -70,7 +71,9 @@ function ComposerModal({ onClose, onCreated, session, visible }: { onClose: () =
   return <Modal animationType="slide" presentationStyle="overFullScreen" transparent visible={visible} onRequestClose={onClose}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalBackdrop}><View style={styles.sheet}><View style={styles.sheetHandle} /><View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Share what you have seen</Text><Pressable accessibilityLabel="Close composer" onPress={onClose}><Ionicons color={colors.muted} name="close" size={24} /></Pressable></View><View style={styles.composerIdentity}><Avatar size={36} user={session.user} /><Text style={styles.composerName}>{userName(session.user)}</Text></View><TextInput autoFocus multiline onChangeText={setText} placeholder="Share what you've seen..." placeholderTextColor={colors.faint} style={styles.composerInput} value={text} /><ScrollView contentContainerStyle={styles.contextRow} horizontal showsHorizontalScrollIndicator={false}>{contextOptions.map((item) => <Pressable key={item} onPress={() => setContext(item)} style={[styles.contextPick, context === item && styles.contextPickActive]}><Text style={[styles.contextPickText, context === item && styles.contextPickTextActive]}>{contextLabels[item]}</Text></Pressable>)}</ScrollView><TextInput onChangeText={setLocation} placeholder="Location optional" placeholderTextColor={colors.faint} style={styles.locationInput} value={location} /><Pressable accessibilityRole="button" disabled={busy || !text.trim()} onPress={submit} style={[styles.publishButton, (!text.trim() || busy) && styles.disabled]}>{busy ? <ActivityIndicator color={colors.bg} /> : <Text style={styles.publishText}>Publish</Text>}</Pressable></View></KeyboardAvoidingView></Modal>;
 }
 
-function CommentsModal({ onClose, post, session, updatePost }: { onClose: () => void; post: WallPost | null; session: Session; updatePost: (post: WallPost) => void }) {
+export function CommentsModal({ onClose, post, session, updatePost }: { onClose: () => void; post: WallPost | null; session: Session; updatePost: (post: WallPost) => void }) {
+  const postingLocked = useRef(false);
+  const [loadError, setLoadError] = useState('');
   const [comments, setComments] = useState<WallComment[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -79,24 +82,30 @@ function CommentsModal({ onClose, post, session, updatePost }: { onClose: () => 
   const load = useCallback(async () => {
     if (!post) return;
     setLoading(true);
-    try { setComments((await api.getWallComments(id, post.shareId, session.accessToken)).comments || []); } catch { setComments([]); } finally { setLoading(false); }
+    setLoadError('');
+    try { setComments(post.author ? (await api.getFeedPost(id)).post.comments || [] : (await api.getWallComments(id, post.shareId, session.accessToken)).comments || []); } catch (e) { setLoadError(e instanceof Error ? e.message : 'Comments could not load.'); } finally { setLoading(false); }
   }, [id, post, session.accessToken]);
   useEffect(() => { load(); }, [load]);
   const send = async () => {
-    if (!post || !text.trim()) return;
+    if (!post || !text.trim() || postingLocked.current) return;
+    postingLocked.current = true;
     setPosting(true);
     try {
-      const { engagement } = await api.commentOnWall(id, text.trim(), post.shareId, session.accessToken);
-      updatePost({ ...post, ...engagement });
+      if (post.author) updatePost((await api.commentOnFeedPost(id, text.trim())).post);
+      else {
+        const { engagement } = await api.commentOnWall(id, text.trim(), post.shareId, session.accessToken);
+        updatePost({ ...post, ...engagement });
+      }
       setText('');
       await load();
     } catch (error) {
       Alert.alert('Comment failed', error instanceof Error ? error.message : 'Please retry.');
     } finally {
+      postingLocked.current = false;
       setPosting(false);
     }
   };
-  return <Modal animationType="slide" presentationStyle="overFullScreen" transparent visible={Boolean(post)} onRequestClose={onClose}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalBackdrop}><View style={styles.sheet}><View style={styles.sheetHandle} /><View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Comments</Text><Pressable accessibilityLabel="Close comments" onPress={onClose}><Ionicons color={colors.muted} name="close" size={24} /></Pressable></View>{loading ? <ActivityIndicator color={colors.blue} /> : <FlatList data={comments} keyExtractor={(item) => item.id} ListEmptyComponent={<Text style={styles.emptySmall}>No comments yet.</Text>} renderItem={({ item }) => <View style={styles.commentRow}><Avatar size={28} user={item.author} /><View style={styles.commentBubble}><Text style={styles.commentName}>{userName(item.author)}</Text><Text style={styles.commentText}>{item.text}</Text></View></View>} style={styles.commentsList} />}<View style={styles.commentInputRow}><TextInput onChangeText={setText} placeholder="Add a comment" placeholderTextColor={colors.faint} style={styles.commentInput} value={text} /><Pressable accessibilityLabel="Send comment" disabled={posting || !text.trim()} onPress={send} style={styles.sendCircle}>{posting ? <ActivityIndicator color={colors.bg} size="small" /> : <Ionicons color={colors.bg} name="send" size={16} />}</Pressable></View></View></KeyboardAvoidingView></Modal>;
+  return <Modal animationType="slide" presentationStyle="overFullScreen" transparent visible={Boolean(post)} onRequestClose={onClose}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalBackdrop}><View style={styles.sheet}><View style={styles.sheetHandle} /><View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Comments</Text><Pressable accessibilityLabel="Close comments" onPress={onClose}><Ionicons color={colors.muted} name="close" size={24} /></Pressable></View>{post?.text ? <ScrollView style={{ maxHeight: 120 }}><Text style={styles.postText}>{post.text}</Text></ScrollView> : null}{loadError ? <Pressable onPress={load}><Text style={{ color: colors.danger, fontSize: 12, paddingVertical: 10 }}>{loadError} · Retry</Text></Pressable> : null}{loading ? <ActivityIndicator color={colors.blue} /> : <FlatList data={comments} keyExtractor={(item) => item.id} ListEmptyComponent={loadError ? null : <Text style={styles.emptySmall}>No comments yet.</Text>} renderItem={({ item }) => <View style={styles.commentRow}><Avatar size={28} user={item.author} /><View style={styles.commentBubble}><Text style={styles.commentName}>{userName(item.author)}</Text><Text style={styles.commentText}>{item.text}</Text></View></View>} style={styles.commentsList} />}<View style={styles.commentInputRow}><TextInput onChangeText={setText} placeholder="Add a comment" placeholderTextColor={colors.faint} style={styles.commentInput} value={text} /><Pressable accessibilityLabel="Send comment" disabled={posting || !text.trim()} onPress={send} style={styles.sendCircle}>{posting ? <ActivityIndicator color={colors.bg} size="small" /> : <Ionicons color={colors.bg} name="send" size={16} />}</Pressable></View></View></KeyboardAvoidingView></Modal>;
 }
 
 function WallPostCard({ onComment, post, session, updatePost }: { onComment: (post: WallPost) => void; post: WallPost; session: Session; updatePost: (post: WallPost) => void }) {
@@ -131,7 +140,7 @@ function WallPostCard({ onComment, post, session, updatePost }: { onComment: (po
   </View>;
 }
 
-export function WallScreen({ onNavigate, session }: { onNavigate: (key: MainTab) => void; session: Session }) {
+export function WallScreen({ createIntent, onCreateIntentHandled, onNavigate, session }: { createIntent?: CreateTarget | null; onCreateIntentHandled?: () => void; onNavigate: (key: MainTab) => void; session: Session }) {
   const [posts, setPosts] = useState<WallPost[]>([]);
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [sawYou, setSawYou] = useState<SawYouToday | null>(null);
@@ -157,6 +166,11 @@ export function WallScreen({ onNavigate, session }: { onNavigate: (key: MainTab)
     }
   }, [session.accessToken]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (createIntent !== 'note') return;
+    setComposerOpen(true);
+    onCreateIntentHandled?.();
+  }, [createIntent, onCreateIntentHandled]);
   const visiblePosts = useMemo(() => {
     const selected = filters.find((item) => item.key === filter);
     if (!selected?.contexts.length) return posts;
