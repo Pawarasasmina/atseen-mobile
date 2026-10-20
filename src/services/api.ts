@@ -27,20 +27,30 @@ async function upload<T>(path: string, form: FormData, accessToken: string): Pro
 export const api = {
   login: (email: string, password: string) => request<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim().toLowerCase(), password }) }),
   me: (accessToken: string) => request<{ user: Session['user'] }>('/auth/me', {}, accessToken),
-  listSeens: (accessToken: string) => request<{ items: Seen[] }>('/publications/seen?page=1&limit=20&tab=seen', {}, accessToken),
+  listSeens: (accessToken: string, tab: 'seen' | 'friends' = 'seen') => request<{ items: Seen[] }>(`/publications/seen?page=1&limit=20&tab=${tab}`, {}, accessToken),
   getPublishedSeen: (id: string, accessToken: string) => request<{ publication: Seen }>(`/publications/${encodeURIComponent(id)}`, {}, accessToken),
   getSeenEngagement: (id: string, accessToken: string) => request<{ engagement: Engagement }>(`/publications/${id}/engagement`, {}, accessToken),
   reactToSeen: (id: string, reaction: string, accessToken: string) => request<{ engagement: Engagement }>(`/publications/${id}/reaction`, { method: 'PUT', body: JSON.stringify({ reaction }) }, accessToken),
   removeSeenReaction: (id: string, accessToken: string) => request<{ engagement: Engagement }>(`/publications/${id}/reaction`, { method: 'DELETE', body: JSON.stringify({}) }, accessToken),
-  commentOnSeen: (id: string, text: string, accessToken: string) => request<{ engagement: Engagement }>(`/publications/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }, accessToken),
+  commentOnSeen: (id: string, text: string, accessToken: string, parentCommentId = '') => request<{ engagement: Engagement }>(`/publications/${id}/comments`, { method: 'POST', body: JSON.stringify({ text, ...(parentCommentId ? { parentCommentId } : {}) }) }, accessToken),
+  reactToSeenComment: (id: string, commentId: string, reaction: string, accessToken: string) => request<{ engagement: Engagement }>(`/publications/${id}/comments/${commentId}/reaction`, { method: 'PUT', body: JSON.stringify({ reaction }) }, accessToken),
+  removeSeenCommentReaction: (id: string, commentId: string, accessToken: string) => request<{ engagement: Engagement }>(`/publications/${id}/comments/${commentId}/reaction`, { method: 'DELETE', body: JSON.stringify({}) }, accessToken),
   toggleSeenShare: (id: string, shared: boolean, accessToken: string) => request<{ engagement: Engagement }>(`/publications/${id}/share`, { method: shared ? 'DELETE' : 'PUT', body: JSON.stringify({}) }, accessToken),
   toggleSeenSave: (id: string, accessToken: string) => request<{ engagement: Engagement }>(`/publications/${id}/save`, { method: 'PUT', body: JSON.stringify({}) }, accessToken),
   getSeenPoll: (id: string, chapterId: string, blockId: string, accessToken: string) => request<{ counts?: number[]; totalVotes?: number; viewerChoice?: number | null; resultsVisible?: boolean }>(`/publications/${id}/chapters/${encodeURIComponent(chapterId)}/polls/${encodeURIComponent(blockId)}`, {}, accessToken),
   voteSeenPoll: (id: string, chapterId: string, blockId: string, optionIndex: number, accessToken: string) => request<{ counts?: number[]; totalVotes?: number; viewerChoice?: number | null; resultsVisible?: boolean }>(`/publications/${id}/chapters/${encodeURIComponent(chapterId)}/polls/${encodeURIComponent(blockId)}`, { method: 'PUT', body: JSON.stringify({ optionIndex }) }, accessToken),
-  discover: (filter: string, accessToken: string) => request<DiscoverData>(`/discover?filter=${encodeURIComponent(filter)}&limit=20`, {}, accessToken),
+  discover: (filter: string, accessToken: string, cursor = '', search = '') => {
+    const query = new URLSearchParams({ filter, limit: '8' });
+    if (cursor) query.set('cursor', cursor);
+    if (search.trim()) query.set('search', search.trim());
+    return request<DiscoverData>(`/discover?${query.toString()}`, {}, accessToken);
+  },
   toggleFollow: (username: string, accessToken: string) => request<{ relationship: { active?: boolean } }>(`/profiles/${encodeURIComponent(username)}/follow`, { method: 'PUT', body: JSON.stringify({}) }, accessToken),
+  reportDiscoverCreator: (userId: string, accessToken: string) => request<{ reportId: string; status: string }>(`/discover/creators/${encodeURIComponent(userId)}/report`, { method: 'POST', body: JSON.stringify({ reason: 'OTHER' }) }, accessToken),
+  hideCreatorStories: (userId: string, accessToken: string) => request<{ creatorId?: string; hidden?: boolean }>(`/stories/creators/${encodeURIComponent(userId)}/hide`, { method: 'POST', body: JSON.stringify({ reason: 'HIDDEN_FROM_RECOMMENDATION_STORY' }) }, accessToken),
   listShareRecipients: (query: string, accessToken: string) => request<{ people: ShareRecipient[] }>(`/messages/share/recipients?q=${encodeURIComponent(query.trim())}&limit=${query.trim() ? 30 : 16}`, {}, accessToken),
   sendSharedSeen: (id: string, recipientIds: string[], text: string, accessToken: string) => request<SharedContentResult>('/messages/share', { method: 'POST', body: JSON.stringify({ recipientIds, text: text.trim(), sharedContent: { contentType: 'seen', contentId: id } }) }, accessToken),
+  sendSharedProfile: (id: string, recipientIds: string[], text: string, accessToken: string) => request<SharedContentResult>('/messages/share', { method: 'POST', body: JSON.stringify({ recipientIds, text: text.trim(), sharedContent: { contentType: 'profile', contentId: id } }) }, accessToken),
   listSeenCategories: (accessToken: string) => request<{ categories: { id: string; name: string }[] }>('/publications/seen/categories', {}, accessToken),
   createSeenDraft: (payload: { title: string; summary: string; category: string; visibility?: 'PUBLIC' | 'FOLLOWERS' | 'LINK_ONLY'; allowDownload?: boolean; experienceLocation?: string; taggedPeople?: string[]; seriesId?: string | null }, accessToken: string) => request<{ publication: { id: string; statusVersion: number } }>('/publications/drafts', { method: 'POST', body: JSON.stringify({ kind: 'SEEN', ...payload, description: payload.summary, visibility: payload.visibility || 'PUBLIC', tags: [] }) }, accessToken),
   listMySeries: (accessToken: string) => request<{ items: { id: string; name: string }[] }>('/publications/series', {}, accessToken),
