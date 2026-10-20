@@ -111,6 +111,8 @@ export function SeenDetailsScreen({ initialSeen, onClose, onFeedUpdate, session 
   const [notice, setNotice] = useState('');
   const [readerIndex, setReaderIndex] = useState<number | null>(null);
   const tracked = useRef('');
+  const onFeedUpdateRef = useRef(onFeedUpdate);
+  useEffect(() => { onFeedUpdateRef.current = onFeedUpdate; }, [onFeedUpdate]);
 
   const chapters = useMemo(() => sortedChapters(seen), [seen]);
   const activeChapter = readerIndex == null ? null : chapters[readerIndex] || null;
@@ -121,13 +123,13 @@ export function SeenDetailsScreen({ initialSeen, onClose, onFeedUpdate, session 
       const [publicationData, engagementData] = await Promise.all([api.getSeen(id, session.accessToken), api.getSeenEngagement(id, session.accessToken)]);
       setSeen(publicationData.publication);
       setEngagement(engagementData.engagement || emptyEngagement);
-      onFeedUpdate(id, engagementData.engagement || emptyEngagement, publicationData.publication);
+      onFeedUpdateRef.current(id, engagementData.engagement || emptyEngagement, publicationData.publication);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'This Seen is not available.');
     } finally {
       setLoading(false);
     }
-  }, [id, onFeedUpdate, session.accessToken]);
+  }, [id, session.accessToken]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -152,12 +154,12 @@ export function SeenDetailsScreen({ initialSeen, onClose, onFeedUpdate, session 
   return <SafeAreaView style={styles.safe}>
     <View style={styles.screen}>
       <View style={styles.header}>
-        <View style={styles.headerBadge}><Text style={styles.headerBadgeText}>SEEN</Text></View>
+        <View style={styles.headerBadge}><Text style={styles.headerBadgeText}>{seen?.kind === 'EXPERIENCE' ? 'EXPERIENCE' : 'SEEN'}</Text></View>
         <View style={styles.headerCopy}><Text numberOfLines={1} style={styles.headerTitle}>{readerIndex == null ? titleFor(seen) : chapterTitle(activeChapter || {}, readerIndex)}</Text><Text numberOfLines={1} style={styles.headerMeta}>{metadataLine(seen, readerIndex || 0)}</Text></View>
         <Pressable accessibilityLabel="Close Seen details" onPress={onClose} style={styles.close}><Ionicons color={colors.text} name="close" size={23} /></Pressable>
       </View>
 
-      {loading ? <DetailSkeleton /> : error ? <ScreenState icon="eye-outline" title="Could not load Seen" message={error} onPress={load} /> : readerIndex == null ? (
+      {loading ? <DetailSkeleton /> : error ? <ScreenState icon="eye-outline" title={seen?.kind === 'EXPERIENCE' ? 'Could not load Experience' : 'Could not load Seen'} message={error} onPress={load} /> : readerIndex == null ? (
         <>
           <ScrollView contentContainerStyle={styles.content}>
             <View style={styles.hero}>

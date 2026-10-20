@@ -26,3 +26,9 @@ test('gift previews use existing backend fields to exclude hidden gifts and pref
   assert.deepEqual(profileGiftPreviews(gifts).map((g) => g.id), ['pin', 'new', 'old']);
   assert.equal(gifts.length, 4);
 });
+
+test('At seen uses a plain label for the vector icon and repairs old prefixes', () => {
+  assert.equal(profileStatusText({ label: 'At seen', emoji: '' }), 'At seen');
+  assert.equal(profileStatusText({ label: '?? At seen' }), 'At seen');
+  assert.equal(profileStatusText({ label: '\u{1F441} At seen', emoji: '\u{1F441}' }), 'At seen');
+});

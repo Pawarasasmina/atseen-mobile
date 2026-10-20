@@ -2,6 +2,7 @@ import type { ActiveStatus, Dream, ExperiencePublication, ProfileGift } from '..
 
 export function profileStatusText(status?: ActiveStatus | null) {
   const label = status?.label || 'Right now…';
+  if (/(?:^|\s)at seen$/i.test(label.trim())) return 'At seen';
   return status?.emoji && !label.startsWith(status.emoji) ? `${status.emoji} ${label}` : label;
 }
 

@@ -91,7 +91,7 @@ export default function App() {
           : activeTab === 'discover' ? <DiscoverScreen session={session} onNavigate={setActiveTab} />
           : activeTab === 'wall' ? <WallScreen createIntent={createIntent} onCreateIntentHandled={() => setCreateIntent(null)} session={session} onNavigate={setActiveTab} />
             : activeTab === 'messages' ? <MessagesScreen initialTab={messagesTab} session={session} onNavigate={(tab) => { setMessagesTab('all'); setActiveTab(tab); }} />
-              : activeTab === 'profile' ? <ProfileScreen session={session} onNavigate={setActiveTab} onCreate={navigateToCreate} onDirectAccess={() => { setMessagesTab('direct'); setActiveTab('messages'); }} />
+              : activeTab === 'profile' ? <ProfileScreen onLogout={async () => { await authStorage.clear(); setSession(null); }} session={session} onNavigate={setActiveTab} onCreate={navigateToCreate} onDirectAccess={() => { setMessagesTab('direct'); setActiveTab('messages'); }} />
                 : <SeenScreen session={session} onCreate={navigateToCreate} onNavigate={setActiveTab} onLogout={async () => { await authStorage.clear(); setSession(null); }} />
       ) : <LoginScreen onAuthenticated={setSession} />}
     </SafeAreaProvider>

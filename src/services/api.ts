@@ -147,11 +147,24 @@ export const api = {
   getProfileConnections: (type: string, page = 1) => request<{ accounts: User[]; pagination: PageInfo }>(`/profiles/me/connections?type=${encodeURIComponent(type)}&page=${page}&limit=30`),
   getProfileMedia: () => request<{ media: ProfilePhoto[] }>('/profiles/me/media?limit=100'),
   uploadProfileMedia: (file: PickedUpload, onProgress?: (percent: number) => void) => request<{ media: ProfilePhoto }>('/profiles/me/media', { method: 'POST', body: uploadForm(file, {}, 'media') }, '', true, onProgress),
-  updateProfile: async (payload: { displayName: string; username: string; bio: string; socialLinks?: { platform: string; url: string }[] }) => {
+  updateProfile: async (payload: { displayName: string; username: string; bio: string; email?: string; city?: string; country?: string; preferredLanguage?: string; phoneNumber?: string; whatsapp?: string; socialLinks?: { platform: string; url: string }[] }) => {
     const result = await request<unknown>('/profile/me', { method: 'PATCH', body: JSON.stringify(payload) });
     await syncSessionUser();
     return result;
   },
+  getEditProfile: () => request<{ account: { email: string }; profile: { displayName: string; username: string; profilePhoto?: string; bio?: string; city?: string; country?: string; preferredLanguage?: string; phoneNumber?: string; whatsapp?: string; socialLinks?: { platform: string; url: string }[] } }>('/profile/me'),
+  getSettingsAccounts: (kind: 'blocked' | 'muted') => request<{ items: { id: string; displayName: string; username: string; profilePhoto?: string }[] }>(`/settings/${kind}-accounts`),
+  removeSettingsAccount: (kind: 'blocked' | 'muted', id: string) => request<unknown>(`/settings/${kind}-accounts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  updateAccountLanguage: (preferredLanguage: string) => request<unknown>('/settings/account', { method: 'PATCH', body: JSON.stringify({ preferredLanguage }) }),
+  logout: () => request<unknown>('/auth/logout', { method: 'POST' }),
+  requestAccountDeletion: () => request<unknown>('/auth/account', { method: 'DELETE' }),
+  getPrivacy: () => request<{ privacySettings: Record<string, string | boolean> }>('/settings/privacy'),
+  updatePrivacy: (privacySettings: Record<string, string | boolean>) => request<unknown>('/settings/privacy', { method: 'PATCH', body: JSON.stringify({ privacySettings }) }),
+  uploadAvatar: async (file: PickedUpload) => { const result = await request<unknown>('/profile/me/avatar', { method: 'POST', body: uploadForm(file, {}, 'avatar') }); await syncSessionUser(); return result; },
+  getNotificationSettings: () => request<{ notificationPreferences: Record<string, boolean> }>('/settings/notifications'),
+  updateNotificationSettings: (notificationPreferences: Record<string, boolean>) => request<unknown>('/settings/notifications', { method: 'PATCH', body: JSON.stringify({ notificationPreferences }) }),
+  getGiftSettings: () => request<{ gifts: { id: string; name: string; enabled: boolean }[] }>('/settings/gifts'),
+  updateGiftSettings: (enabledGiftIds: string[]) => request<unknown>('/settings/gifts', { method: 'PUT', body: JSON.stringify({ enabledGiftIds }) }),
   getReceivedGifts: () => request<{ gifts: ProfileGift[]; total: number }>('/profiles/me/gifts?limit=100'),
   updateGift: (id: string, payload: { hiddenFromProfile?: boolean; featuredOnProfile?: boolean }) => request<unknown>(`/profiles/me/gifts/${encodeURIComponent(id)}/profile-state`, { method: 'PATCH', body: JSON.stringify(payload) }),
   thankGift: (id: string) => request<unknown>(`/profiles/me/gifts/${encodeURIComponent(id)}/thank`, { method: 'POST' }),
@@ -178,6 +191,7 @@ export const api = {
   discover: (filter: string, accessToken?: string) => request<DiscoverData>(`/discover?filter=${encodeURIComponent(filter)}&limit=20`, {}, accessToken || ''),
   toggleFollow: (username: string, accessToken?: string) => request<{ relationship: { active?: boolean } }>(`/profiles/${encodeURIComponent(username)}/follow`, { method: 'PUT', body: JSON.stringify({}) }, accessToken || ''),
   listShareRecipients: (query: string, accessToken?: string) => request<{ people: ShareRecipient[] }>(`/messages/share/recipients?q=${encodeURIComponent(query.trim())}&limit=${query.trim() ? 30 : 16}`, {}, accessToken || ''),
+  sendSharedProfile: (id: string, recipientIds: string[], text: string, accessToken?: string) => request<SharedContentResult>('/messages/share', { method: 'POST', body: JSON.stringify({ recipientIds, text: text.trim(), sharedContent: { contentType: 'profile', contentId: id } }) }, accessToken || ''),
   sendSharedSeen: (id: string, recipientIds: string[], text: string, accessToken?: string) => request<SharedContentResult>('/messages/share', { method: 'POST', body: JSON.stringify({ recipientIds, text: text.trim(), sharedContent: { contentType: 'seen', contentId: id } }) }, accessToken || ''),
 
   listWall: (limit = 30, accessToken?: string) => request<{ items: WallPost[] }>(`/wall?limit=${limit}`, {}, accessToken || ''),
