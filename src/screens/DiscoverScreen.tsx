@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomNav } from '../components/BottomNav';
 import { api, resolveMediaUrl, WEB_BASE_URL } from '../services/api';
 import { colors } from '../theme';
-import type { DiscoverData, DiscoverPerson, DiscoverStory, Session, ShareRecipient } from '../types';
+import type { DiscoverData, DiscoverPerson, DiscoverStory, MainTab, Session, ShareRecipient } from '../types';
 
 const EMPTY: DiscoverData = { recommendations: [], following: [], friends: [], filters: [] };
 const FILTERS = [{ id: 'nearby', label: 'Nearby' }, { id: 'creators', label: 'Creators' }, { id: 'new', label: 'New' }];
@@ -68,7 +68,7 @@ function StoryViewer({ accessToken, initial, people, onClose, onRelationship, on
 
 function MenuItem({ danger = false, disabled = false, icon, label, onPress }: { danger?: boolean; disabled?: boolean; icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) { return <Pressable disabled={disabled} onPress={onPress} style={[styles.menuItem, disabled && styles.menuDisabled]}><Ionicons color={danger ? colors.danger : colors.muted} name={icon} size={18} /><Text style={[styles.menuLabel, danger && styles.menuDanger]}>{label}</Text></Pressable>; }
 
-export function DiscoverScreen({ session, onNavigate }: { session: Session; onNavigate: (key: 'seen' | 'discover') => void }) {
+export function DiscoverScreen({ session, onNavigate }: { session: Session; onNavigate: (key: MainTab) => void }) {
   const { width } = useWindowDimensions(); const cardWidth = Math.floor((width - 36) / 2);
   const [data, setData] = useState<DiscoverData>(EMPTY); const [filter, setFilter] = useState('for_you'); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [loadingMore, setLoadingMore] = useState(false); const [error, setError] = useState(''); const [selected, setSelected] = useState<DiscoverPerson | null>(null); const [searchOpen, setSearchOpen] = useState(false);
   const load = useCallback(async (append = false) => { const cursor = append ? data.pagination?.nextCursor || '' : ''; if (append && (!cursor || loadingMore)) return; append ? setLoadingMore(true) : setError(''); try { const page = await api.discover(filter, session.accessToken, cursor); setData((current) => append ? { ...page, recommendations: mergePeople(current.recommendations, page.recommendations), following: current.following, friends: current.friends, sharedWalks: current.sharedWalks } : page); } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load Discover'); } finally { setLoading(false); setRefreshing(false); setLoadingMore(false); } }, [data.pagination?.nextCursor, filter, loadingMore, session.accessToken]);
