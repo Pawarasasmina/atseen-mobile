@@ -8,9 +8,18 @@
     "userInterfaceStyle": "dark",
     "scheme": "onlyme",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
+        "NSCameraUsageDescription": "Allow OnlyMe to record video notes.",
+        "NSMicrophoneUsageDescription": "Allow OnlyMe to record voice messages and video notes."
+      }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -23,8 +32,25 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      ["expo-navigation-bar", { "enforceContrast": false, "style": "dark" }],
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow OnlyMe to record voice messages.",
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow OnlyMe to record video notes.",
+          "microphonePermission": "Allow OnlyMe to include audio in video notes.",
+          "photosPermission": "Allow OnlyMe to select media for upload."
+        }
+      ],
+      "expo-video"
     ]
   }
 }
