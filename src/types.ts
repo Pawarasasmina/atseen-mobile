@@ -125,9 +125,22 @@ export type Message = {
   gift?: { name?: string; stars?: number; imageUrl?: string } | null;
   sharedContent?: { contentType?: string; title?: string; previewText?: string; imageUrl?: string; author?: User | null } | null;
   readAt?: string | null;
+  reactions?: { emoji?: string; userId?: string; count?: number }[];
+  viewerReaction?: string | null;
+  deletedForEveryone?: boolean;
+  replyTo?: { id?: string; senderId?: string; body?: string } | null;
+  forwarded?: boolean;
+  disappearAfterSeconds?: number | null;
+  openedAt?: string | null;
+  expiresAt?: string | null;
+  deletedAt?: string | null;
+  storyReply?: { storyId?: string; imageUrl?: string; caption?: string; reaction?: string } | null;
   createdAt?: string;
   locked?: boolean;
 };
+
+export type ChatGift = { id: string; name: string; imageUrl?: string; stars: number; receivedCount?: number };
+export type MessageGroup = { id: string; name: string; description?: string; avatarUrl?: string; members?: User[]; admins?: string[]; createdBy?: string; unreadCount?: number; archived?: boolean; muted?: boolean; lastMessage?: Message; permissions?: { editGroupInfo?: string; addMembers?: string } };
 
 export type Conversation = {
   id: string;
@@ -139,6 +152,13 @@ export type Conversation = {
   muted?: boolean;
   requestReceived?: boolean;
   directAccessWindow?: DirectAccessWindow | null;
+  isUnanswered?: boolean;
+  hasStoryReply?: boolean;
+  isWorldMember?: boolean;
+  unlockedExperience?: boolean;
+  isDreamKeeper?: boolean;
+  type?: 'direct' | 'group';
+  group?: MessageGroup;
 };
 
 export type DirectAccessWindow = {
@@ -159,6 +179,9 @@ export type DirectAccessWindow = {
   openedAt?: string;
   expiresAt?: string;
   answeredAt?: string | null;
+  firstCreatorReplyAt?: string | null;
+  creatorQuestionMessageId?: string | null;
+  latestMessage?: Message | null;
   refundedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
