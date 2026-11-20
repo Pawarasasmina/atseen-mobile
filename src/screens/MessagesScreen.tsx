@@ -7,6 +7,7 @@ import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, 
 import { Avatar } from '../components/Avatar';
 import { BottomNav } from '../components/BottomNav';
 import { ScreenState, SkeletonRows } from '../components/ScreenState';
+import { SeenDetailsScreen } from './SeenDetailsScreen';
 import { api, resolveMediaUrl } from '../services/api';
 import { getMessageSocket } from '../services/messageSocket';
 import { colors } from '../theme';
@@ -220,6 +221,8 @@ function MessageRow({ conversation, onArchive, onOpen }: { conversation: Convers
 
 function ChatModal({ conversation, onClose, onRefresh, session }: { conversation: Conversation | null; onClose: () => void; onRefresh: () => void; session: Session }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [selectedSeen, setSelectedSeen] = useState<string | null>(null);
+  useEffect(() => setSelectedSeen(null), [conversation?.id]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -336,13 +339,14 @@ function ChatModal({ conversation, onClose, onRefresh, session }: { conversation
     const mine = String(item.senderId) === myId;
     const image = resolveMediaUrl(item.image?.url || item.sharedContent?.imageUrl || '');
     return <View style={[styles.bubbleWrap, mine && styles.bubbleWrapMine]}>
-      <View style={[styles.bubble, mine && styles.bubbleMine]}>
+      <Pressable accessibilityLabel={item.sharedContent?.contentType === 'seen' ? 'Open shared Seen' : undefined} disabled={item.sharedContent?.contentType !== 'seen' || !item.sharedContent.contentId} onPress={() => setSelectedSeen(item.sharedContent!.contentId!)} style={[styles.bubble, mine && styles.bubbleMine]}>
         {image ? <Image source={{ uri: image }} style={styles.messageImage} /> : null}
         {item.mediaType === 'audio' ? <VoiceBubble audio={item.audio} mine={mine} /> : item.mediaType === 'video' ? <VideoBubble mine={mine} video={item.video} /> : <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{preview(item)}</Text>}
         <Text style={[styles.bubbleTime, mine && styles.bubbleTimeMine]}>{relativeTime(item.createdAt)}</Text>
-      </View>
+      </Pressable>
     </View>;
   };
+  if (selectedSeen) return <Modal animationType="slide" visible onRequestClose={() => setSelectedSeen(null)}><SeenDetailsScreen initialSeen={{ id: selectedSeen, kind: 'SEEN' }} session={session} onClose={() => setSelectedSeen(null)} onFeedUpdate={() => {}} /></Modal>;
   return <Modal animationType="slide" visible={Boolean(conversation)} onRequestClose={onClose}><SafeAreaView style={styles.safe}><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.chatScreen}><View style={styles.chatHeader}><Pressable accessibilityLabel="Back to inbox" hitSlop={8} onPress={onClose}><Ionicons color={colors.text} name="chevron-back" size={26} /></Pressable><Avatar size={34} user={conversation?.participant} /><View style={styles.chatTitleWrap}><Text numberOfLines={1} style={styles.chatTitle}>{userName(conversation?.participant)}</Text>{conversation?.directAccessWindow ? <Text style={styles.chatSub}>Direct Access · {daLabel(conversation.directAccessWindow)}</Text> : <Text style={styles.chatSub}>{conversation?.status === 'REQUEST' ? 'Message request' : 'Conversation'}</Text>}</View></View>{loading ? <ScreenState loading title="Opening conversation" /> : <FlatList contentContainerStyle={styles.chatList} data={messages} keyExtractor={(item) => item.id} ListEmptyComponent={<ScreenState icon="chatbubble-outline" title="No messages yet." />} renderItem={renderMessage} />}<View style={styles.inputBar}><Pressable accessibilityLabel="Record video note" disabled={sending} onPress={sendVideoNote} style={[styles.inputIcon, sending && styles.disabled]}><Ionicons color={colors.faint} name="videocam-outline" size={20} /></Pressable><VoiceComposer disabled={sending} onSend={sendVoice} /><TextInput onChangeText={setText} placeholder="Message..." placeholderTextColor={colors.faint} style={styles.messageInput} value={text} /><Pressable accessibilityLabel="Send message" disabled={sending || !text.trim()} onPress={send} style={[styles.sendButton, (!text.trim() || sending) && styles.disabled]}>{sending ? <ActivityIndicator color={colors.bg} size="small" /> : <Ionicons color={colors.bg} name="send" size={17} />}</Pressable></View></KeyboardAvoidingView></SafeAreaView></Modal>;
 }
 

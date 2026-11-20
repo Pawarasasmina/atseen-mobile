@@ -7,6 +7,7 @@ import { resolveMediaUrl } from '../../services/api';
 import { colors } from '../../theme';
 import type { ExperiencePublication, ProfileSeries, SeenMedia } from '../../types';
 import { compact, relativeTime } from '../../utils/format';
+import { SeenCard } from '../SeenCard';
 
 export const recordId = (item: { id?: string; _id?: string }) => String(item.id || item._id || '');
 export const coverUrl = (item: { coverMedia?: SeenMedia; introMedia?: SeenMedia }) => item.coverMedia?.secureUrl || item.coverMedia?.url || item.introMedia?.secureUrl || item.introMedia?.url || '';
@@ -25,6 +26,7 @@ export function SectionHeading({ title, children }: { title: string; children?: 
   return <View style={[s.heading, title === 'Dream' && { marginTop: 20, marginBottom: 6 }, title === 'Wall' && { marginTop: 22, marginBottom: 4 }, title === 'Photos' && { marginTop: 22 }]}><Text style={[s.title, title === 'Dream' && { flex: 0 }]}>{title}</Text>{children}</View>;
 }
 export function ExperiencePreview({ item, onPress }: { item: ExperiencePublication; onPress: () => void }) {
+  if (item.kind === 'SEEN' && item.status !== 'DRAFT') return <SeenCard item={item} onOpen={onPress} />;
   const paid = item.pricing?.mode === 'ONE_TIME';
   const publishedDate = relativeTime(item.publishedAt);
   return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${item.title || 'experience'}`} onPress={onPress} style={s.experience}>

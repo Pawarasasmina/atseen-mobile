@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { EngagementSheet, reactions } from '../components/EngagementSheet';
 import { ScreenState } from '../components/ScreenState';
 import { ShareSheet } from '../components/ShareSheet';
+import { SeenCard } from '../components/SeenCard';
+import { hideSeenArrows } from '../utils/seenArrowVisibility';
 import { api, resolveMediaUrl } from '../services/api';
 import { colors } from '../theme';
 import { compact, relativeTime, userName } from '../utils/format';
@@ -133,6 +135,10 @@ export function SeenDetailsScreen({ initialSeen, onClose, onFeedUpdate, session 
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
+    return () => subscription.remove();
+  }, [onClose]);
+  useEffect(() => {
     if (!id || tracked.current === id) return;
     tracked.current = id;
     api.trackContentView(id, session.accessToken);
@@ -150,6 +156,11 @@ export function SeenDetailsScreen({ initialSeen, onClose, onFeedUpdate, session 
     finally { setPending(''); }
   };
   if (!id) return <SafeAreaView style={styles.safe}><ScreenState title="This Seen is not available." onPress={onClose} action="Back" /></SafeAreaView>;
+
+  if (seen?.kind !== 'EXPERIENCE') return <SafeAreaView style={styles.safe}><View style={styles.screen}>
+    <View style={styles.header}><Pressable accessibilityLabel="Back" hitSlop={12} onPress={onClose}><Ionicons name="chevron-back" size={24} color={colors.text} /></Pressable><Text numberOfLines={1} style={[styles.headerTitle, { flex: 1, marginLeft: 12 }]}>Seen</Text></View>
+    {loading ? <DetailSkeleton /> : error ? <ScreenState icon="eye-outline" title="Could not load Seen" message={error} onPress={load} /> : seen ? <ScrollView onScrollBeginDrag={hideSeenArrows} onMomentumScrollBegin={hideSeenArrows}><SeenCard accessToken={session.accessToken} viewerId={String(session.user.id || session.user._id || '')} item={{ ...seen, engagement }} onPublicationChange={(publication) => { setSeen((old) => old ? { ...old, ...publication } : publication); onFeedUpdate(id, engagement, publication); }} onEngagementChange={(_, next) => updateEngagement(next)} /></ScrollView> : null}
+  </View></SafeAreaView>;
 
   return <SafeAreaView style={styles.safe}>
     <View style={styles.screen}>

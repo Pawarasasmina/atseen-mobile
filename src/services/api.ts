@@ -9,11 +9,15 @@ export const resolveMediaUrl = (value = '') => !value || /^https?:\/\//i.test(va
 import type { Dream, PageInfo, ProfileGift, ProfilePhoto } from '../types';
 
 let accessTokenProvider: (() => string) | null = null;
+let currentViewerId = '';
+export const getCurrentViewerId = () => currentViewerId;
 let sessionUpdater: ((session: Session | null) => void | Promise<void>) | null = null;
 let unauthorizedHandler: (() => void) | null = null;
 let refreshPromise: Promise<string> | null = null;
+const contentViewSessionId = `rn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+type SeenPollResult = { counts: number[] | null; totalVotes: number | null; viewerChoice: number | null; resultsVisible: boolean };
 
-export const setAccessTokenProvider = (provider: (() => string) | null) => { accessTokenProvider = provider; };
+export const setAccessTokenProvider = (provider: (() => string) | null, viewerId = '') => { accessTokenProvider = provider; currentViewerId = viewerId; };
 export const setSessionUpdater = (handler: ((session: Session | null) => void | Promise<void>) | null) => { sessionUpdater = handler; };
 export const setUnauthorizedHandler = (handler: (() => void) | null) => { unauthorizedHandler = handler; };
 
@@ -131,6 +135,8 @@ function uploadForm(file: PickedUpload, fields: Record<string, string | number |
 }
 
 export const api = {
+  searchDefaults: () => request<import('./searchTypes').SearchDefaults>('/search/defaults'),
+  search: (q: string, type: import('./searchTypes').SearchType = 'all', cursor = '') => request<import('./searchTypes').SearchResults>(`/search?q=${encodeURIComponent(q)}&type=${type}&limit=18&sort=relevant${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`),
   updateProfileStatus: async (payload: { status?: string | null; clear?: boolean }) => {
     const result = await request<{ activeStatus: UnifiedProfile['profile']['activeStatus'] }>('/profiles/me/status', { method: 'PATCH', body: JSON.stringify(payload) });
     await syncSessionUser();
@@ -141,6 +147,10 @@ export const api = {
   saveFeedPost: (id: string) => request<{ post: WallPost }>(`/posts/${encodeURIComponent(id)}/save`, { method: 'PUT' }),
   shareFeedPost: (id: string) => request<{ post: WallPost }>(`/posts/${encodeURIComponent(id)}/share`, { method: 'PUT', body: JSON.stringify({ caption: '' }) }),
   commentOnFeedPost: (id: string, text: string) => request<{ post: WallPost }>(`/posts/${encodeURIComponent(id)}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
+  voiceCommentOnFeedPost: (id: string, uri: string, waveform: number[], text = '') => {
+    const body = uploadForm({ uri, name: 'wall-comment.m4a', type: 'audio/mp4' }, { text, waveform: JSON.stringify(waveform) }, 'voice');
+    return request<{ post: WallPost }>(`/posts/${encodeURIComponent(id)}/comments`, { method: 'POST', body });
+  },
   editFeedPost: (post: WallPost, text: string) => request<{ post: WallPost }>(`/posts/${encodeURIComponent(post.originalPostId || post.id)}`, { method: 'PUT', body: JSON.stringify({ text, context: post.context || '', location: post.location || '', entityRefs: post.entityRefs || [] }) }),
   getArchivedFeedPosts: (page = 1) => request<{ items: WallPost[]; pagination: PageInfo }>(`/posts/mine?status=archived&page=${page}&limit=30`),
   archiveFeedPost: (id: string) => request<unknown>(`/posts/${encodeURIComponent(id)}/archive`, { method: 'POST' }),
@@ -179,13 +189,37 @@ export const api = {
   updateDirectAccess: (payload: { enabled: boolean; priceStars: number; callEnabled: boolean; callPriceStars: number; callDurationMinutes: number; callAutoDeclineAway: boolean }) => request<unknown>('/messages/direct-access/settings', { method: 'PUT', body: JSON.stringify(payload) }),
   login: (email: string, password: string) => request<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email: email.trim().toLowerCase(), password }) }, '', false),
   me: (accessToken?: string) => request<{ user: Session['user'] }>('/auth/me', {}, accessToken || ''),
-  listSeens: (accessToken?: string) => request<{ items: Seen[] }>('/publications/seen?page=1&limit=20&tab=seen', {}, accessToken || ''),
+  listSeens: (accessToken?: string, tab: 'seen' | 'friends' = 'seen', page = 1) => request<{ items: Seen[]; pagination?: PageInfo }>(`/publications/seen?page=${page}&limit=20&tab=${tab}`, {}, accessToken || ''),
+  hideSeen: (id: string, accessToken?: string) => request<unknown>(`/publications/${encodeURIComponent(id)}/hide`, { method: 'POST', body: JSON.stringify({ reason: 'NOT_INTERESTED' }) }, accessToken || ''),
+  blockSeenCreator: (id: string, accessToken?: string) => request<unknown>(`/publications/${encodeURIComponent(id)}/block-creator`, { method: 'PUT' }, accessToken || ''),
+  pinSeen: (id: string, pinned: boolean, statusVersion: number, accessToken?: string) => request<{ publication: ExperiencePublication }>(`/publications/mine/${encodeURIComponent(id)}/pin`, { method: 'PUT', body: JSON.stringify({ pinned, statusVersion }) }, accessToken || ''),
+  archiveSeen: (id: string, statusVersion: number, accessToken?: string) => request<{ publication: ExperiencePublication }>(`/publications/mine/${encodeURIComponent(id)}/archive`, { method: 'POST', body: JSON.stringify({ statusVersion }) }, accessToken || ''),
+  deleteSeen: (id: string, statusVersion: number, accessToken?: string) => request<{ id: string }>(`/publications/mine/${encodeURIComponent(id)}/seen`, { method: 'DELETE', body: JSON.stringify({ statusVersion }) }, accessToken || ''),
+  shareSeenAsStory: (id: string, accessToken?: string) => request<unknown>(`/stories/share/seen/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ audience: 'everyone' }) }, accessToken || ''),
+  getSeenInsights: (id: string, accessToken?: string) => request<{ insights: { totalViews?: number; todayViews?: number; readToEndPercent?: number | null; reactions?: number; comments?: number; saves?: number; shares?: number; dailyViews?: { _id?: string; date?: string; value?: number }[]; trafficSources?: { source: string; percent: number }[] } }>(`/publications/mine/${encodeURIComponent(id)}/insights`, {}, accessToken || ''),
+  listSeenSeries: (accessToken?: string) => request<{ items: { id: string; name: string }[] }>('/publications/series', {}, accessToken || ''),
+  createSeenSeries: (name: string, accessToken?: string) => request<{ series: { id: string; name: string } }>('/publications/series', { method: 'POST', body: JSON.stringify({ name }) }, accessToken || ''),
+  addSeenToSeries: (seriesId: string, id: string, accessToken?: string) => request<{ publication: ExperiencePublication }>(`/publications/series/${encodeURIComponent(seriesId)}/seens/${encodeURIComponent(id)}`, { method: 'POST' }, accessToken || ''),
+  removeSeenFromSeries: (seriesId: string, id: string, accessToken?: string) => request<{ publication: ExperiencePublication }>(`/publications/series/${encodeURIComponent(seriesId)}/seens/${encodeURIComponent(id)}`, { method: 'DELETE' }, accessToken || ''),
+  getSeenActivity: (accessToken?: string) => request<{ items: { id: string; title?: string; description?: string; preview?: string; createdAt?: string; target?: { type?: string; id?: string } }[] }>('/fan/activity?limit=30', {}, accessToken || ''),
   getSeen: (id: string, accessToken?: string) => request<{ publication: Seen }>(`/publications/${encodeURIComponent(id)}`, {}, accessToken || ''),
-  trackContentView: (id: string, accessToken?: string) => request<{ recorded?: boolean }>('/analytics/events', { method: 'POST', body: JSON.stringify({ entityId: id, entityType: 'seen', eventType: 'CONTENT_VIEW', source: 'seen', sessionId: `rn-${Date.now()}` }) }, accessToken || '').catch(() => ({ recorded: false })),
+  trackContentView: (id: string, accessToken?: string) => request<{ recorded?: boolean }>('/analytics/events', { method: 'POST', body: JSON.stringify({ entityId: id, entityType: 'seen', eventType: 'CONTENT_VIEW', source: 'seen', sessionId: contentViewSessionId }) }, accessToken || '').catch(() => ({ recorded: false })),
+  getSeenPoll: (id: string, chapterId: string, blockId: string, accessToken?: string) => request<SeenPollResult>(`/publications/${encodeURIComponent(id)}/chapters/${encodeURIComponent(chapterId)}/polls/${encodeURIComponent(blockId)}`, {}, accessToken || ''),
+  voteSeenPoll: (id: string, chapterId: string, blockId: string, optionIndex: number, accessToken?: string) => request<SeenPollResult>(`/publications/${encodeURIComponent(id)}/chapters/${encodeURIComponent(chapterId)}/polls/${encodeURIComponent(blockId)}`, { method: 'PUT', body: JSON.stringify({ optionIndex }) }, accessToken || ''),
+  reportSeen: (id: string, reason: string, accessToken?: string) => request<unknown>(`/publications/${encodeURIComponent(id)}/report`, { method: 'POST', body: JSON.stringify({ reason }) }, accessToken || ''),
   getSeenEngagement: (id: string, accessToken?: string) => request<{ engagement: Engagement }>(`/publications/${id}/engagement`, {}, accessToken || ''),
   reactToSeen: (id: string, reaction: string, accessToken?: string) => request<{ engagement: Engagement }>(`/publications/${id}/reaction`, { method: 'PUT', body: JSON.stringify({ reaction }) }, accessToken || ''),
   removeSeenReaction: (id: string, accessToken?: string) => request<{ engagement: Engagement }>(`/publications/${id}/reaction`, { method: 'DELETE', body: JSON.stringify({}) }, accessToken || ''),
-  commentOnSeen: (id: string, text: string, accessToken?: string) => request<{ engagement: Engagement }>(`/publications/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }, accessToken || ''),
+  commentOnSeen: (id: string, text: string, accessToken?: string, parentCommentId?: string) => request<{ engagement: Engagement }>(`/publications/${id}/comments`, { method: 'POST', body: JSON.stringify({ text, parentCommentId: parentCommentId || undefined }) }, accessToken || ''),
+  reactToSeenComment: (id: string, commentId: string, reacted: boolean, accessToken?: string) => request<{ engagement: Engagement }>(`/publications/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}/reaction`, { method: reacted ? 'DELETE' : 'PUT', body: JSON.stringify(reacted ? {} : { reaction: 'LOVE' }) }, accessToken || ''),
+  voiceCommentOnSeen: (id: string, uri: string, text: string, waveform: number[], accessToken?: string, parentCommentId?: string) => {
+    const body = new FormData();
+    body.append('voice', { uri, name: 'voice-comment.m4a', type: 'audio/mp4' } as unknown as Blob);
+    if (text.trim()) body.append('text', text.trim());
+    if (parentCommentId) body.append('parentCommentId', parentCommentId);
+    body.append('waveform', JSON.stringify(waveform));
+    return request<{ engagement: Engagement }>(`/publications/${encodeURIComponent(id)}/comments`, { method: 'POST', body }, accessToken || '');
+  },
   toggleSeenShare: (id: string, shared: boolean, accessToken?: string) => request<{ engagement: Engagement }>(`/publications/${id}/share`, { method: shared ? 'DELETE' : 'PUT', body: JSON.stringify({}) }, accessToken || ''),
   toggleSeenSave: (id: string, accessToken?: string) => request<{ engagement: Engagement }>(`/publications/${id}/save`, { method: 'PUT', body: JSON.stringify({}) }, accessToken || ''),
   discover: (filter: string, accessToken?: string) => request<DiscoverData>(`/discover?filter=${encodeURIComponent(filter)}&limit=20`, {}, accessToken || ''),
@@ -195,6 +229,12 @@ export const api = {
   sendSharedSeen: (id: string, recipientIds: string[], text: string, accessToken?: string) => request<SharedContentResult>('/messages/share', { method: 'POST', body: JSON.stringify({ recipientIds, text: text.trim(), sharedContent: { contentType: 'seen', contentId: id } }) }, accessToken || ''),
 
   listWall: (limit = 30, accessToken?: string) => request<{ items: WallPost[] }>(`/wall?limit=${limit}`, {}, accessToken || ''),
+  listWallFeed: (query: string, accessToken?: string) => request<{ items: WallPost[]; pagination: PageInfo }>(`/posts?${query}`, {}, accessToken || ''),
+  publishWallNote: (body: FormData, key: string, accessToken?: string) => request<{ post: WallPost }>('/posts', { method: 'POST', body, headers: { 'Idempotency-Key': key } }, accessToken || ''),
+  getWallView: () => request<{ view: 'feed' | 'grid' }>('/users/me/wall-view'),
+  setWallView: (view: 'feed' | 'grid') => request<{ view: 'feed' | 'grid' }>('/users/me/wall-view', { method: 'PATCH', body: JSON.stringify({ view }) }),
+  wallPostAction: (id: string, action: 'hide' | 'report' | 'block-author' | 'archive' | 'delete' | 'bump' | 'resolution', payload = {}) => request<{ post?: WallPost }>(`/posts/${encodeURIComponent(id)}${action === 'delete' ? '' : `/${action}`}`, { method: action === 'delete' ? 'DELETE' : ['block-author', 'resolution'].includes(action) ? 'PUT' : 'POST', body: JSON.stringify(payload) }),
+  markWallViewed: (id: string) => request<{ viewCount: number }>(`/posts/${encodeURIComponent(id)}/views`, { method: 'POST', body: JSON.stringify({ sessionId: contentViewSessionId }) }),
   createWallPost: (payload: { text: string; context: string; location?: string }, accessToken?: string) => request<{ post: WallPost }>('/wall', { method: 'POST', body: formFrom({ text: payload.text, context: payload.context, location: payload.location || '', entityRefs: '[]' }) }, accessToken || ''),
   getWallComments: (id: string, shareId?: string | null, accessToken?: string) => request<{ comments: WallComment[] }>(`/wall/${id}/comments${shareId ? `?shareId=${encodeURIComponent(shareId)}` : ''}`, {}, accessToken || ''),
   reactToWall: (id: string, reaction = 'like', shareId?: string | null, accessToken?: string) => request<{ engagement: Engagement }>(`/wall/${id}/reaction`, { method: 'PUT', body: JSON.stringify({ reaction, ...(shareId ? { shareId } : {}) }) }, accessToken || ''),

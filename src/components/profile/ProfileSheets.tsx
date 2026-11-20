@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useEvent } from 'expo';
@@ -66,7 +66,7 @@ export function ConnectionsSheet({ type, onClose, onOpen }: { type: string; onCl
   const locked = useRef(false);
   const load = async (page = 1) => { if (locked.current) return; locked.current = true; setBusy(true); setError(''); try { const result = await api.getProfileConnections(type, page); setItems((old) => page === 1 ? result.accounts : [...old, ...result.accounts]); setPaging(result.pagination); } catch (e) { setError(e instanceof Error ? e.message : 'Could not load connections.'); } finally { locked.current = false; setBusy(false); } };
   useEffect(() => { load(); }, [type]);
-  return <ProfileSheet title={type === 'seen-by' ? 'Seen by' : type === 'followers' ? 'Followers' : 'Following'} onClose={onClose}>{error ? <SheetRow title={error} detail="Tap to retry" onPress={() => load(paging ? paging.page + 1 : 1)} /> : null}<FlatList data={items} keyExtractor={(u) => String(u.id || u._id)} style={s.list} renderItem={({ item }) => <Pressable onPress={() => onOpen(item)} style={s.person}><Avatar size={38} user={item} /><View style={s.flex}><Text style={s.rowTitle}>{userName(item)}</Text><Text style={s.detail}>@{item.username}</Text></View></Pressable>} onEndReached={() => { if (paging?.hasMore && !error) load(paging.page + 1); }} ListEmptyComponent={!busy && !error ? <Text style={s.empty}>No accounts yet.</Text> : null} ListFooterComponent={busy ? <ActivityIndicator color={colors.blue} style={s.clear} /> : null} /></ProfileSheet>;
+  return <ProfileSheet title={type === 'seen-by' ? 'Seen by' : type === 'followers' ? 'Followers' : 'Following'} onClose={onClose}>{error ? <SheetRow title={error} detail="Tap to retry" onPress={() => load(paging ? paging.page + 1 : 1)} /> : null}<FlatList data={items} keyExtractor={(u) => String(u.id || u._id)} style={s.list} renderItem={({ item }) => <Pressable onPress={() => onOpen(item)} style={s.person}><Avatar size={38} user={item} /><View style={s.flex}><Text style={s.rowTitle}>{userName(item)}</Text><Text style={s.detail}>@{item.username}</Text></View></Pressable>} onEndReached={() => { if (paging?.hasMore && !error) load(paging.page + 1); }} ListEmptyComponent={!busy && !error ? <Text style={s.empty}>No accounts yet.</Text> : undefined} ListFooterComponent={busy ? <ActivityIndicator color={colors.blue} style={s.clear} /> : undefined} /></ProfileSheet>;
 }
 function VideoPlayer({ uri }: { uri: string }) {
   const player = useVideoPlayer(resolveMediaUrl(uri), (value) => { value.play(); });

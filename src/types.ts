@@ -1,4 +1,4 @@
-﻿export type User = {
+export type User = {
   id?: string;
   _id?: string;
   name?: string;
@@ -28,12 +28,12 @@ export type ActiveStatus = {
 
 export type Session = { accessToken: string; user: User };
 
-export type SeenComment = { id: string; text: string; createdAt?: string; author?: User; viewerSaved?: boolean };
-export type Engagement = { reactionCount?: number; reactionBreakdown?: Record<string, number>; topReactions?: string[]; commentCount?: number; shareCount?: number; saveCount?: number; viewCount?: number; viewerReaction?: string | null; viewerShared?: boolean; viewerSaved?: boolean; comments?: SeenComment[] };
-export type SeenMedia = { assetId?: string; secureUrl?: string; url?: string; mediaType?: string; resourceType?: string; duration?: number; width?: number; height?: number };
+export type SeenComment = { id: string; text: string; createdAt?: string; author?: User; viewerSaved?: boolean; parentCommentId?: string | null; reactionCount?: number; viewerReaction?: string | null; replies?: SeenComment[]; audio?: { url?: string; duration?: number; waveform?: number[] } | null };
+export type Engagement = { reactionCount?: number; reactionBreakdown?: Record<string, number>; topReactions?: string[]; reactors?: { id: string; reaction?: string; user?: User }[]; privateShareCount?: number; commentCount?: number; shareCount?: number; saveCount?: number; viewCount?: number; viewerReaction?: string | null; viewerShared?: boolean; viewerSaved?: boolean; comments?: SeenComment[] };
+export type SeenMedia = { assetId?: string; secureUrl?: string; url?: string; playbackUrl?: string; mediaType?: string; resourceType?: string; duration?: number; durationSeconds?: number; width?: number; height?: number };
 export type SeenBlock = { id?: string; type?: string; order?: number; text?: string; url?: string; label?: string; media?: SeenMedia; metadata?: Record<string, unknown> };
 export type SeenChapter = { stableChapterId?: string; id?: string; order?: number; title?: string; isPreview?: boolean; locked?: boolean; blocks?: SeenBlock[] };
-export type Seen = { id?: string; _id?: string; kind?: string; title?: string; summary?: string; description?: string; category?: string; publishedAt?: string; coverMedia?: SeenMedia; introMedia?: SeenMedia; creator?: User & { verified?: boolean; location?: string }; chapters?: SeenChapter[]; engagement?: Engagement; nextSeen?: Seen | null };
+export type Seen = { id?: string; _id?: string; kind?: string; title?: string; summary?: string; description?: string; category?: string; publishedAt?: string; coverMedia?: SeenMedia; introMedia?: SeenMedia; creator?: User & { verified?: boolean; location?: string }; chapters?: SeenChapter[]; engagement?: Engagement; access?: string; statusVersion?: number; createdAt?: string; updatedAt?: string; isPinned?: boolean; series?: { id?: string; name?: string } | null; seriesId?: string | null; allowDownload?: boolean; ownerCount?: number; pricing?: { mode?: string; starsAmount?: number | null }; nextSeen?: Seen | null };
 export type ExperiencePublication = Seen & {
   chapterCount?: number;
   updatedAt?: string;
@@ -62,6 +62,16 @@ export type SharedContentResult = { sent?: { recipientId: string }[]; failed?: {
 
 export type WallMedia = { _id?: string; id?: string; assetId?: string; url?: string; secureUrl?: string; mediaType?: string; type?: string };
 export type WallPost = {
+  postType?: string;
+  topic?: string;
+  rightNow?: boolean;
+  price?: number | null;
+  currency?: string;
+  isClosed?: boolean;
+  canEdit?: boolean;
+  canResolve?: boolean;
+  canBump?: boolean;
+  resolvedAt?: string | null;
   archived?: boolean;
   author?: User;
   entityRefs?: { entityId: string; entityType: string }[];
@@ -93,7 +103,7 @@ export type WallPost = {
   viewerSaved?: boolean;
 };
 
-export type WallComment = { id: string; text: string; createdAt?: string; author?: User };
+export type WallComment = { audio?: { url?: string; duration?: number; waveform?: number[] } | null; id: string; text: string; createdAt?: string; author?: User };
 export type StoryGroup = {
   user: User;
   stories?: { id: string; mediaUrl?: string; thumbnailUrl?: string; mediaType?: string; type?: string; caption?: string; viewed?: boolean; createdAt?: string }[];
@@ -119,7 +129,7 @@ export type Message = {
   audio?: { url?: string; duration?: number; waveform?: number[] } | null;
   video?: { url?: string; duration?: number; width?: number; height?: number } | null;
   gift?: { name?: string; stars?: number; imageUrl?: string } | null;
-  sharedContent?: { contentType?: string; title?: string; previewText?: string; imageUrl?: string; author?: User | null } | null;
+  sharedContent?: { contentType?: string; contentId?: string | null; route?: string; title?: string; previewText?: string; imageUrl?: string; author?: User | null } | null;
   readAt?: string | null;
   createdAt?: string;
   locked?: boolean;

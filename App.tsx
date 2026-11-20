@@ -33,7 +33,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    setAccessTokenProvider(() => session?.accessToken || '');
+    setAccessTokenProvider(() => session?.accessToken || '', String(session?.user.id || session?.user._id || ''));
     setSessionUpdater(async (nextSession) => {
       setSession(nextSession);
       if (nextSession) await authStorage.write(nextSession);
@@ -47,7 +47,7 @@ export default function App() {
       setSessionUpdater(null);
       setUnauthorizedHandler(null);
     };
-  }, [session?.accessToken]);
+  }, [session?.accessToken, session?.user.id, session?.user._id]);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -68,8 +68,17 @@ export default function App() {
       setActiveTab('wall');
       return;
     }
-    const url = `${WEB_BASE_URL}${createRoutes[target]}`;
     try {
+      let path = createRoutes[target];
+      if (target === 'world') {
+        const result = await api.listOwnPublications('WORLD,PREMIUM_WORLD', '', 1);
+        const existing = result.items.find((item) => ['PUBLISHED', 'CHANGES_REQUESTED', 'PENDING_REVIEW', 'REJECTED'].includes(item.status || '')) || result.items.find((item) => item.status === 'DRAFT');
+        if (existing) {
+          const id = encodeURIComponent(String(existing.id || existing._id));
+          path = existing.status === 'DRAFT' ? `/studio/worlds/${id}/edit` : `/world/${id}`;
+        }
+      }
+      const url = `${WEB_BASE_URL}${path}`;
       const supported = await Linking.canOpenURL(url);
       if (!supported) throw new Error('This device cannot open the creator flow.');
       await Linking.openURL(url);

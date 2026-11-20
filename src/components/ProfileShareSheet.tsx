@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, Share, StyleSheet, Text, TextInput, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,7 +28,7 @@ export function ProfileShareSheet({ accessToken, profile, visible, onClose }: { 
   const [people, setPeople] = useState<ShareRecipient[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [message, setMessage] = useState('');
-  const messageInput = useRef<TextInput>(null);
+  const messageInput = useRef<ComponentRef<typeof TextInput>>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState('');
